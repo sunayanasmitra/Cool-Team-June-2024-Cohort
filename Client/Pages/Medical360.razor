@@ -1,0 +1,186 @@
+﻿@page "/Medical-360"
+@using HealthCareApp.Shared.Dto.BasicInformation
+@using HealthCareApp.Shared.Dto.MedicalRecord
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Medical 360</PageTitle>
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge">
+	<MudPaper Class="p-5 w-50">
+		<MudPaper>
+			<MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+				<MudAvatar Size="Size.Large" Color="Color.Dark" Style="margin-left:0; padding-left:0; margin-bottom:20px;">M</MudAvatar>
+				<div style="display:flex;flex-direction:column; justify-content:space-around; align-items:start; flex-wrap:nowrap;">
+					@* <MudChip T="string" Label="true" style="margin-bottom:20px;">Medical 360</MudChip> *@
+					<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700; text-wrap:wrap;">@Basic?.FirstName @Basic?.LastName DOB: @Basic?.DOB</MudChip>
+					<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700; text-wrap:wrap;">Blood Pressure: @MedRecord?.BloodPressure Weight: @MedRecord?.WeightInPounds</MudChip>
+				</div>
+			</MudStack>
+			<MudStack Row="true" AlignItems="AlignItems.Center" Style="justify-content:end;">
+				<MudButton @onclick="@(()=>{navigation.NavigateTo("/Health-Plan");})">
+					Go to Health Plan
+				</MudButton>
+			</MudStack>
+		</MudPaper>
+		<MudGrid Style="margin-top:25px;">
+			<MudItem sm="12" md="4" lg="5" Style="margin-left:auto; margin-right:auto;">
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700;">Diagnosis Timeline</MudChip>
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:500; margin-top:0px; float:right;" @onclick="(changeDiagnosis)"><span class="oi oi-pencil"></span></MudChip>
+				@if (!showDiagnosis)
+				{
+					<MudTimeline Style="height:350px; overflow-y:scroll;">
+
+						@foreach (DiagnosisDto dat in Diagnosis.OrderBy(t => t.StartDate))
+						{
+							<MudTimelineItem>
+								<ItemOpposite>
+									<MudText Typo="Typo.h6" Style="text-decoration: underline">@dat.DiagnosisDirectoryDto.DiagnosisName</MudText>
+									<MudText>Start Date</MudText>
+									<MudText Typo="Typo.subtitle2">@dat.StartDate</MudText>
+								</ItemOpposite>
+							</MudTimelineItem>
+						}
+						@foreach (DiagnosisDto dat in Diagnosis.OrderBy(t => t.EndDate))
+						{
+							<MudTimelineItem>
+								<ItemOpposite>
+									<MudText Typo="Typo.h6" Style="text-decoration: underline">@dat.DiagnosisDirectoryDto.DiagnosisName</MudText>
+									<MudText>End Date</MudText>
+									<MudText Typo="Typo.subtitle2">@dat.EndDate</MudText>
+								</ItemOpposite>
+							</MudTimelineItem>
+						}
+					</MudTimeline>
+				}
+				else
+				{
+					<Diagnosis></Diagnosis>
+				}
+
+			</MudItem>
+
+			<MudItem md="4" lg="3" Style="margin-left:auto; margin-right:auto;">
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700;">Symptoms</MudChip>
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:500; margin-top:0px; float:right;" @onclick="(changeSymptoms)"><span class="oi oi-pencil"></span></MudChip>
+				<MudStack>
+					@if (!showSymptoms)
+					{
+						@foreach (SymptomDto dat in symptoms)
+						{
+
+							<MudPaper Class="pa-3">Symptom: @dat.SymptomDirectoryDto.SymptomName Start Date: @dat.StartDate End Date: @dat.EndDate</MudPaper>
+
+						}
+					}
+					else
+					{
+						<Symptom></Symptom>
+					}
+				</MudStack>
+			</MudItem>
+			<MudItem md="4" lg="3" Style="margin-left:auto; margin-right:auto;">
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700; margin-top:0px;">Allergies</MudChip>
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:500; margin-top:0px; float:right;" @onclick="(changeAllergies)"><span class="oi oi-pencil"></span></MudChip>
+				<MudStack>
+					@if (!showAllergies)
+					{
+						@foreach (AllergyDto dat in Allergies)
+						{
+							<MudPaper Class="pa-3">Allergy: @dat.AllergyDirectoryDto.AllergyName Start Date: @dat.StartDate End Date: @dat.EndDate</MudPaper>
+						}
+					}
+					else
+					{
+						<Allergy></Allergy>
+					}
+
+				</MudStack>
+			</MudItem>
+			<MudItem md="4" lg="7" Style="margin-left:auto; margin-right:auto;">
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700;">Medications</MudChip>
+				<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:500; margin-top:0px; float:right;" @onclick="(changeMedications)"><span class="oi oi-pencil"></span></MudChip>
+				@if (!showMedications)
+				{
+					<MudStack>
+						@foreach (MedicationDto dat in Medications)
+						{
+							<MudPaper Class="pa-3">Medications: @dat.DrugDirectoryDto.DrugName Start Date: @dat.StartDate End Date: @dat.EndDate</MudPaper>
+						}
+					</MudStack>
+				}
+				else
+				{
+					<Medication></Medication>
+				}
+			</MudItem>
+			<MudItem xs="12" md="5" lg="5" Style="margin-left:auto; margin-right:auto;">
+				<BasicInformation />
+			</MudItem>
+		</MudGrid>
+	</MudPaper>
+</MudContainer>
+
+
+@code {
+
+	@inject ISnackbar Snackbar;
+	@inject NavigationManager navigation;
+	bool showDiagnosis = false;
+	bool showSymptoms = false;
+	bool showAllergies = false;
+	bool showMedications = false;
+	MedicalRecordDto? MedRecord { get; set; } = new MedicalRecordDto();
+	List<AllergyDto>? Allergies { get; set; } = new List<AllergyDto>();
+	List<DiagnosisDto>? Diagnosis { get; set; } = new List<DiagnosisDto>();
+	List<SymptomDto>? symptoms { get; set; } = new List<SymptomDto>();
+	BasicInformationDto? Basic { get; set; } = new BasicInformationDto();
+	List<MedicationDto>? Medications { get; set; } = new List<MedicationDto>();
+
+	MudForm form { get; set; }
+	protected override async Task OnInitializedAsync()
+	{
+		MedRecord = await Http.GetFromJsonAsync<MedicalRecordDto>("Get-MedicalRecord");
+		Allergies = await Http.GetFromJsonAsync<List<AllergyDto>>("Get-Allergy");
+		Diagnosis = await Http.GetFromJsonAsync<List<DiagnosisDto>>("Get-Diagnosis");
+		symptoms = await Http.GetFromJsonAsync<List<SymptomDto>>("Get-Symptom");
+		Medications = await Http.GetFromJsonAsync<List<MedicationDto>>("Get-Medication");
+		Basic = await Http.GetFromJsonAsync<BasicInformationDto>("Get-BasicInformation");
+
+		StateHasChanged();
+	}
+
+	public async void changeDiagnosis()
+	{
+		Diagnosis = await Http.GetFromJsonAsync<List<DiagnosisDto>>("Get-Diagnosis");
+		showDiagnosis = !showDiagnosis;
+		StateHasChanged();
+	}
+	public async void changeSymptoms()
+	{
+		symptoms = await Http.GetFromJsonAsync<List<SymptomDto>>("Get-Symptom");
+		showSymptoms = !showSymptoms;
+		StateHasChanged();
+
+	}
+	public async void changeAllergies()
+	{
+		Allergies = await Http.GetFromJsonAsync<List<AllergyDto>>("Get-Allergy");
+		showAllergies = !showAllergies;
+		StateHasChanged();
+
+	}
+	public async void changeMedications()
+	{
+		Medications = await Http.GetFromJsonAsync<List<MedicationDto>>("Get-Medication");
+		showMedications = !showMedications;
+		StateHasChanged();
+	}
+	public async void ChangeShow()
+	{
+		MedRecord = await Http.GetFromJsonAsync<MedicalRecordDto>("Get-MedicalRecord");
+		Basic = await Http.GetFromJsonAsync<BasicInformationDto>("Get-BasicInformation");
+		StateHasChanged();
+	}
+
+}

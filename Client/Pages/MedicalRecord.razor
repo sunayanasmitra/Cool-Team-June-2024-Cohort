@@ -1,0 +1,92 @@
+﻿@page "/medical-record"
+@using HealthCareApp.Shared.Dto.MedicalRecord
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Medical Record</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Small">
+	<MudPaper Class="p-5 w-50">
+		<MudChip T="string" Label="true" style="margin-bottom:20px; margin-top:20px; font-weight:700;">Medical Record</MudChip>
+		<MudForm Spacing="2" @ref="@form">
+			<MudTextField Label="Blood Pressure"
+						  @bind-Value="data.BloodPressure" />
+			<MudTextField Label="Blood Glucose Level"
+						  @bind-Value="data.BloodGlucoseLevel" />
+			<MudTextField Label="Weight In Pounds"
+						  @bind-Value="data.WeightInPounds" />
+			<MudTextField Label="Height In Inches"
+						  @bind-Value="data.HeightInInches" />
+			<MudStack Row="true" Justify="Justify.Center" Spacing="2">
+				<MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="(() =>SubmitForm())">Submit</MudButton>
+				<MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="!isSubmitClicked" EndIcon="@Icons.Material.Filled.Send" OnClick="(() =>goNext())">Next</MudButton>
+			</MudStack>
+		</MudForm>
+	</MudPaper>
+</MudContainer>
+
+
+@code {
+
+	@inject ISnackbar Snackbar
+	@inject NavigationManager navigation
+
+	private bool isSubmitClicked = false;
+	MedicalRecordDto data { get; set; } = new MedicalRecordDto();
+	MudForm form { get; set; }
+
+	protected override async Task OnInitializedAsync()
+	{
+		//var existingRecord = await Http.GetFromJsonAsync<MedicalRecordDto>("Get-MedicalRecord");
+		var response = await Http.GetAsync("Get-MedicalRecord");
+		if(response.IsSuccessStatusCode)
+		{
+			data = await response.Content.ReadFromJsonAsync<MedicalRecordDto>();
+			StateHasChanged();
+		}
+	}
+
+	private async void SubmitForm()
+	{
+		isSubmitClicked = true;
+		//check if the record already exists
+		var response = await Http.GetAsync("Get-MedicalRecord");
+
+		if(response.IsSuccessStatusCode)
+		{
+			var updatedResponse = await Http.PutAsJsonAsync("Update-MedicalRecord", data);
+			if (updatedResponse.IsSuccessStatusCode)
+			{
+				Snackbar.Add("Medical Record Updated.", Severity.Success);
+			}
+			else
+			{
+				Snackbar.Add("Failed to update Medical Recrod.", Severity.Error);
+			}
+		}
+		else
+		{
+			data.RecordDate = DateTime.Now;
+			data.ApplicationUserId = "";
+			var createResponse = await Http.PostAsJsonAsync("/Create-MedicalRecord", data);
+			if (createResponse.IsSuccessStatusCode)
+			{
+				Snackbar.Add("Medical Record Created.", Severity.Success);
+			}
+			else
+			{
+				Snackbar.Add("Failed to create Medical Recrod.", Severity.Error);
+			}
+		}
+
+		// fetch the updated record
+		data = await Http.GetFromJsonAsync<MedicalRecordDto>("Get-MedicalRecord") ?? new MedicalRecordDto();
+		StateHasChanged();	
+		
+	}
+
+	public async void goNext()
+	{
+		navigation.NavigateTo("/symptom");
+	}
+}

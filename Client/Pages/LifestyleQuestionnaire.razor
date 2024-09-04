@@ -1,0 +1,809 @@
+﻿@page "/Lifestyle-Questionnaire/{id:int}"
+@using HealthCareApp.Shared.Dto.LifestyleRecord
+@using HealthCareApp.Shared.Dto.MedicalRecord
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Lifestyle Questionnaire</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudPaper Class="p-5 w-50">
+        <!-- Existing Eating Habits Card -->
+        <MudCard Style="margin-bottom:10px;  margin-top:20px;">
+            <h4>Eating Habits</h4>
+            @if (eatingHabits != null && eatingHabits.Any())
+            {
+                @foreach (var record in eatingHabits)
+                {
+                    <MudCard Style="margin-bottom:10px;">
+                        <MudCardContent>
+                            <MudText>
+                                <strong>Calories Per Day:</strong> @record.CaloriesPerDay <br />
+                                <strong>Sugar Intake Per Day (grams):</strong> @record.SugarIntakePerDay <br />
+                                <strong>Fat Intake Per Day (grams):</strong> @record.FatIntakePerDay <br />
+                                <strong>Protein Intake Per Day (grams):</strong> @record.ProteinIntakePerDay <br />
+                                <strong>Cholesterol Intake Per Day (grams):</strong> @record.CholesterolIntakePerDay <br />
+                                <strong>Carb Intake Per Day (grams):</strong> @record.CarbIntakePerDay <br />
+                                <strong>Sodium Intake Per Day (grams):</strong> @record.SodiumIntakePerDay <br />
+                                <strong>Vegetable Percent of Intake:</strong> @record.VegetablePercentOfIntake.ToString("P") <br />
+                                <strong>Meat Percent of Intake:</strong> @record.MeatPercentOfIntake.ToString("P") <br />
+                                <strong>Grains Percent of Intake:</strong> @record.CerealsPercentofIntake.ToString("P") <br />
+                                <strong>Food Restrictions:</strong> @record.FoodRestriction
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" @onclick="() => EditEatingHabit(record)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" @onclick="() => DeleteEatingHabit(record.Id)" />
+                        </MudCardContent>
+                    </MudCard>
+                }
+
+                <MudButton OnClick="ToggleEatingHabitForm" Style="margin-top:20px;">
+                    Create New Eating Habit
+                </MudButton>
+            }
+            else
+            {
+                <MudText>No existing eating habits found.</MudText>
+
+                <MudButton OnClick="ToggleEatingHabitForm" Style="margin-top:20px;">
+                    Create New Eating Habit
+                </MudButton>
+            }
+        </MudCard>
+
+        <!-- Form to Add New Eating Habit -->
+        @if (showEatingHabitForm)
+        {
+            <MudCard Style="margin-bottom:10px;">
+                <MudCardContent>
+                    <h4>Add New Eating Habit</h4>
+                    <EditForm Model="newEatingHabit" OnValidSubmit="SubmitEatingHabit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <MudTextField @bind-Value="newEatingHabit.CaloriesPerDay" Label="Calories Per Day" />
+                        <MudTextField @bind-Value="newEatingHabit.SugarIntakePerDay" Label="Sugar Intake Per Day  (grams)" />
+                        <MudTextField @bind-Value="newEatingHabit.FatIntakePerDay" Label="Fat Intake Per Day (grams)" />
+                        <MudTextField @bind-Value="newEatingHabit.ProteinIntakePerDay" Label="Protein Intake Per Day (grams)" />
+                        <MudTextField @bind-Value="newEatingHabit.CholesterolIntakePerDay" Label="Cholesterol Intake Per Day (grams)" />
+                        <MudTextField @bind-Value="newEatingHabit.CarbIntakePerDay" Label="Carb Intake Per Day (grams)" />
+                        <MudTextField @bind-Value="newEatingHabit.SodiumIntakePerDay" Label="Sodium Intake Per Day (grams)" />
+                        <MudTextField @bind-Value="newEatingHabit.VegetablePercentOfIntake" Label="Vegetable Percent of Intake" />
+                        <MudTextField @bind-Value="newEatingHabit.MeatPercentOfIntake" Label="Meat Percent of Intake" />
+                        <MudTextField @bind-Value="newEatingHabit.CerealsPercentofIntake" Label="Grains Percent of Intake" />
+                        <MudTextField @bind-Value="newEatingHabit.FoodRestriction" Label="Food Restrictions" />
+
+                        <MudButton Type="Submit" Style="margin-top:20px;" OnClick="SubmitEatingHabit">
+                            Submit
+                        </MudButton>
+
+                        <MudButton OnClick="ToggleEatingHabitForm" Style="margin-top:20px;">
+                            Cancel
+                        </MudButton>
+                    </EditForm>
+                </MudCardContent>
+            </MudCard>
+        }
+
+        <!-- Existing Physical Activities Card -->
+        <MudCard Style="margin-bottom:10px;">
+            <h4>Physical Activity Habits</h4>
+            @if (physicalActivities != null && physicalActivities.Any())
+            {
+                @foreach (var record in physicalActivities)
+                {
+                    <MudCard Style="margin-bottom:10px;">
+                        <MudCardContent>
+                            <MudText>
+                                <strong>Activity Type:</strong> @(activityDirectoryMap.TryGetValue(record.ActivityDirectoryId, out var activityName) ? activityName : "Unknown") <br />
+                                <strong>Times Per Week:</strong> @record.TimesPerWeek <br />
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" @onclick="() => EditPhysicalActivity(record)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" @onclick="() => DeletePhysicalActivity(record.Id)" />
+                        </MudCardContent>
+                    </MudCard>
+                }
+
+                <MudButton OnClick="TogglePhysicalActivitiesForm" Style="margin-top:20px;">
+                    Create New Physical Activity
+                </MudButton>
+            }
+            else
+            {
+                <MudText>No existing physical activities found.</MudText>
+
+                <MudButton OnClick="TogglePhysicalActivitiesForm" Style="margin-top:20px;">
+                    Create New Physical Activity
+                </MudButton>
+            }
+        </MudCard>
+
+        <!-- Form to Add New Physical Activity -->
+        @if (showPhysicalActivityForm)
+        {
+            <MudCard Style="margin-bottom:10px;">
+                <MudCardContent>
+                    <h4>Add New Physical Activity</h4>
+                    <EditForm Model="newPhysicalActivity" OnValidSubmit="SubmitPhysicalActivity">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <MudSelect T="int" @bind-Value="newPhysicalActivity.ActivityDirectoryId" Label="Activity Type">
+                            @foreach (var activity in activityDirectories)
+                            {
+                                <MudSelectItem T="int" Value="activity.Id">@activity.ActivityName</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudTextField @bind-Value="newPhysicalActivity.TimesPerWeek" Label="Times Per Week" />
+
+                        <MudButton Type="Submit" Style="margin-top:20px;" OnClick="SubmitPhysicalActivity">
+                            Submit
+                        </MudButton>
+
+                        <MudButton OnClick="TogglePhysicalActivitiesForm" Style="margin-top:20px;">
+                            Cancel
+                        </MudButton>
+                    </EditForm>
+
+                </MudCardContent>
+            </MudCard>
+        }
+
+        <!-- Existing Alcohol Habits Card -->
+        <MudCard Style="margin-bottom:10px;">
+            <h4>Alcohol Habits</h4>
+            @if (alcoholHabits != null && alcoholHabits.Any())
+            {
+                @foreach (var record in alcoholHabits)
+                {
+                    <MudCard Style="margin-bottom:10px;">
+                        <MudCardContent>
+                            <MudText>
+                                <strong>Alcohol Type:</strong> @record.PrimaryAlcoholType <br />
+                                <strong>Drinks Per Week:</strong> @record.DrinksPerWeek <br />
+                                <strong>Drinks Per Month:</strong> @record.DrinksPerMonth
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" @onclick="() => EditAlcoholHabit(record)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" @onclick="() => DeleteAlcoholHabit(record.Id)" />
+                        </MudCardContent>
+                    </MudCard>
+                }
+
+                <MudButton OnClick="ToggleAlcoholHabitForm" Style="margin-top:20px;">
+                    Create New Alcohol Habit
+                </MudButton>
+            }
+            else
+            {
+                <MudText>No existing alcohol habits found.</MudText>
+
+                <MudButton OnClick="ToggleAlcoholHabitForm" Style="margin-top:20px;">
+                    Create New Alcohol Habit
+                </MudButton>
+            }
+        </MudCard>
+
+        <!-- Form to Add New Alcohol Habit -->
+        @if (showAlcoholHabitForm)
+        {
+            <MudCard Style="margin-bottom:10px;">
+                <MudCardContent>
+                    <h4>Add New Alcohol Habit</h4>
+                    <EditForm Model="newAlcoholHabit" OnValidSubmit="SubmitAlcoholHabit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <MudTextField @bind-Value="newAlcoholHabit.PrimaryAlcoholType" Label="Alcohol Type" />
+                        <MudTextField @bind-Value="newAlcoholHabit.DrinksPerWeek" Label="Drinks Per Week" />
+                        <MudTextField @bind-Value="newAlcoholHabit.DrinksPerMonth" Label="Drinks Per Month" />
+
+                        <MudButton Type="Submit" Style="margin-top:20px;" OnClick="SubmitAlcoholHabit">
+                            Submit
+                        </MudButton>
+                        <MudButton OnClick="ToggleAlcoholHabitForm" Style="margin-top:20px;">
+                            Cancel
+                        </MudButton>
+                    </EditForm>
+                </MudCardContent>
+            </MudCard>
+        }
+
+        <!-- Existing Drug Habits Card -->
+        <MudCard Style="margin-bottom:10px;">
+            <h4>Drug Habits</h4>
+            @if (drugHabits != null && drugHabits.Any())
+            {
+                @foreach (var record in drugHabits)
+                {
+                    <MudCard Style="margin-bottom:10px;">
+                        <MudCardContent>
+                            <MudText>
+                                <strong>Drug Type:</strong> @(drugDirectoryMap.TryGetValue(record.DrugDirectoryId, out var drugName) ? drugName : "Unknown") <br />
+                                <strong>Doses Per Week:</strong> @record.DosesPerWeek <br />
+                                <strong>Doses Per Month:</strong> @record.DosesPerMonth
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" @onclick="() => EditDrugHabit(record)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" @onclick="() => DeleteDrugHabit(record.Id)" />
+                        </MudCardContent>
+                    </MudCard>
+                }
+
+                <MudButton OnClick="ToggleDrugHabitForm" Style="margin-top:20px;">
+                    Create New Drug Habit
+                </MudButton>
+            }
+            else
+            {
+                <MudText>No existing drug habits found.</MudText>
+
+                <MudButton OnClick="ToggleDrugHabitForm" Style="margin-top:20px;">
+                    Create New Drug Habit
+                </MudButton>
+            }
+        </MudCard>
+
+        <!-- Form to Add New Drug Habit -->
+        @if (showDrugHabitForm)
+        {
+            <MudCard Style="margin-bottom:10px;">
+                <MudCardContent>
+                    <h4>Add New Drug Habit</h4>
+                    <EditForm Model="newDrugHabit" OnValidSubmit="SubmitDrugHabit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <MudSelect T="int" @bind-Value="newDrugHabit.DrugDirectoryId" Label="Drug Type">
+                            @foreach (var drug in drugDirectories)
+                            {
+                                <MudSelectItem T="int" Value="drug.Id">@drug.DrugName</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudTextField @bind-Value="newDrugHabit.DosesPerWeek" Label="Doses Per Week" />
+                        <MudTextField @bind-Value="newDrugHabit.DosesPerMonth" Label="Doses Per Month" />
+
+                        <MudButton Type="Submit" Style="margin-top:20px;" OnClick="SubmitDrugHabit">
+                            Submit
+                        </MudButton>
+                        <MudButton OnClick="ToggleDrugHabitForm" Style="margin-top:20px;">
+                            Cancel
+                        </MudButton>
+                    </EditForm>
+                </MudCardContent>
+            </MudCard>
+        }
+
+        <div style="display: flex; justify-content: space-between; margin-bottom:20px;">
+
+            <MudButton OnClick="BackToList" Style="margin-top:20px;">
+                Back to Lifestyle Habits
+            </MudButton>
+
+            <MudButton OnClick="Finish" Style="margin-top:20px;">
+                Finish
+            </MudButton>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    LifestyleRecordDto record { get; set; }
+    List<EatingHabitsDto> eatingHabits { get; set; } = new List<EatingHabitsDto>();
+    List<PhysicalActivitiesDto> physicalActivities { get; set; } = new List<PhysicalActivitiesDto>();
+    List<AlcoholHabitsDto> alcoholHabits { get; set; } = new List<AlcoholHabitsDto>();
+    List<DrugHabitsDto> drugHabits { get; set; } = new List<DrugHabitsDto>();
+
+    private List<ActivityDirectoryDto> activityDirectories = new List<ActivityDirectoryDto>();
+    private List<DrugDirectoryDto> drugDirectories = new List<DrugDirectoryDto>();
+    private Dictionary<int, string> drugDirectoryMap = new Dictionary<int, string>();
+    private Dictionary<int, string> activityDirectoryMap = new Dictionary<int, string>();
+
+    private bool showEatingHabitForm = false;
+    private EatingHabitsDto newEatingHabit = new EatingHabitsDto();
+    private bool showPhysicalActivityForm = false;
+    private PhysicalActivitiesDto newPhysicalActivity = new PhysicalActivitiesDto();
+    private bool showAlcoholHabitForm = false;
+    private AlcoholHabitsDto newAlcoholHabit = new AlcoholHabitsDto();
+    private bool showDrugHabitForm = false;
+    private DrugHabitsDto newDrugHabit = new DrugHabitsDto();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchRecord();
+        await FetchEatingHabits();
+        await FetchPhysicalActivities();
+        await FetchAlcoholHabits();
+        await FetchDrugHabits();
+        await FetchActivityDirectories();
+        await FetchDrugDirectories();
+
+        var uniqueDrugIds = drugHabits.Select(dh => dh.DrugDirectoryId).Distinct();
+        foreach (var drugId in uniqueDrugIds)
+        {
+            await FetchDrugDirectory(drugId);
+        }
+
+        var uniqueActivityIds = physicalActivities.Select(pa => pa.ActivityDirectoryId).Distinct();
+        foreach (var activityId in uniqueActivityIds)
+        {
+            await FetchActivityDirectory(activityId);
+        }
+    }
+
+    private async Task FetchRecord()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-LifestyleRecords/{Id}");
+            response.EnsureSuccessStatusCode();
+            record = await response.Content.ReadFromJsonAsync<LifestyleRecordDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching lifestyle record: {ex.Message}");
+        }
+    }
+
+    private async Task FetchEatingHabits()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-EatingHabits-By-LifestyleRecord?lifestyleRecordId={Id}");
+            response.EnsureSuccessStatusCode();
+            eatingHabits = await response.Content.ReadFromJsonAsync<List<EatingHabitsDto>>() ?? new List<EatingHabitsDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching eating habits: {ex.Message}");
+            eatingHabits = new List < EatingHabitsDto >();
+        }
+    }
+
+    private async Task FetchPhysicalActivities()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-PhysicalActivities-By-LifestyleRecord?lifestyleRecordId={Id}");
+            response.EnsureSuccessStatusCode();
+            physicalActivities = await response.Content.ReadFromJsonAsync<List<PhysicalActivitiesDto>>() ?? new List<PhysicalActivitiesDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching physical activities: {ex.Message}");
+            physicalActivities = new List<PhysicalActivitiesDto>();
+        }
+    }
+
+    private async Task FetchAlcoholHabits()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-AlcoholHabits-By-LifestyleRecord?lifestyleRecordId={Id}");
+            response.EnsureSuccessStatusCode();
+            alcoholHabits = await response.Content.ReadFromJsonAsync<List<AlcoholHabitsDto>>() ?? new List<AlcoholHabitsDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching alcohol habits: {ex.Message}");
+            alcoholHabits = new List<AlcoholHabitsDto>();
+        }
+    }
+
+    private async Task FetchDrugHabits()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-DrugHabits-By-LifestyleRecord?lifestyleRecordId={Id}");
+            response.EnsureSuccessStatusCode();
+            drugHabits = await response.Content.ReadFromJsonAsync<List<DrugHabitsDto>>() ?? new List<DrugHabitsDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching drug habits: {ex.Message}");
+            drugHabits = new List<DrugHabitsDto>();
+        }
+    }
+
+    private async Task FetchActivityDirectories()
+    {
+        try
+        {
+            var response = await Http.GetAsync("https://localhost:7056/api/ActivityDirectory/Get-All-ActivityDirectories");
+            response.EnsureSuccessStatusCode();
+            activityDirectories = await response.Content.ReadFromJsonAsync<List<ActivityDirectoryDto>>() ?? new List<ActivityDirectoryDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching activity directories: {ex.Message}");
+        }
+    }
+
+    private async Task FetchDrugDirectories()
+    {
+        try
+        {
+            var response = await Http.GetAsync("https://localhost:7056/Get-DrugDirectories");
+            response.EnsureSuccessStatusCode();
+            drugDirectories = await response.Content.ReadFromJsonAsync<List<DrugDirectoryDto>>() ?? new List<DrugDirectoryDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching drug directories: {ex.Message}");
+        }
+    }
+
+    /*private async Task FetchDrugDirectory(int drugId)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/api/DrugDirectory/Get-Drug/{drugId}");
+            response.EnsureSuccessStatusCode();
+            var drug = await response.Content.ReadFromJsonAsync<DrugDirectoryDto>();
+            if (drug != null)
+            {
+                drugDirectoryMap[drug.Id] = drug.DrugName;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching drug directory: {ex.Message}");
+        }
+    }*/
+
+    /*private async Task FetchActivityDirectory(int activityId)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/api/ActivityDirectory/Get-Activity/{activityId}");
+            response.EnsureSuccessStatusCode();
+            var activity = await response.Content.ReadFromJsonAsync<ActivityDirectoryDto>();
+            if (activity != null)
+            {
+                activityDirectoryMap[activity.Id] = activity.ActivityName;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching activity directory: {ex.Message}");
+        }
+    }*/
+
+    private async Task SubmitEatingHabit()
+    {
+        try 
+        {
+            var url = newEatingHabit.Id == 0
+                ? "https://localhost:7056/api/EatingHabits/Create-EatingHabits"
+                : $"https://localhost:7056/api/EatingHabits/Update-EatingHabits?id={newEatingHabit.Id}";
+
+            var response = newEatingHabit.Id == 0
+                ? await Http.PostAsJsonAsync(url, newEatingHabit)
+                : await Http.PutAsJsonAsync(url, newEatingHabit);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Eating habit created successfully.");
+                await FetchEatingHabits();
+                showEatingHabitForm = false;
+            }
+            else
+            {
+            }
+        }
+        catch (Exception ex)
+        {
+        }
+    }
+
+
+    private async Task SubmitPhysicalActivity()
+    {
+        try
+        {
+            var url = newPhysicalActivity.Id == 0
+                ? "https://localhost:7056/api/PhysicalActivities/Create-PhysicalActivities"
+                : $"https://localhost:7056/api/PhysicalActivities/Update-PhysicalActivities?id={newPhysicalActivity.Id}";
+
+            var response = newPhysicalActivity.Id == 0
+                ? await Http.PostAsJsonAsync(url, newPhysicalActivity)
+                : await Http.PutAsJsonAsync(url, newPhysicalActivity);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Physical activity created successfully.");
+                await FetchPhysicalActivities();
+
+                // Fetch the activity directory name immediately after creation/update
+                var activityId = newPhysicalActivity.ActivityDirectoryId;
+                await FetchActivityDirectory(activityId);
+
+                showPhysicalActivityForm = false;
+            }
+            else
+            {
+                Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting physical activity: {ex.Message}");
+        }
+
+        await FetchActivityDirectories();
+        await FetchPhysicalActivities();
+    }
+
+    private async Task FetchActivityDirectory(int activityId)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/api/ActivityDirectory/Get-Activity/{activityId}");
+            response.EnsureSuccessStatusCode();
+            var activity = await response.Content.ReadFromJsonAsync<ActivityDirectoryDto>();
+            if (activity != null)
+            {
+                activityDirectoryMap[activity.Id] = activity.ActivityName;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching activity directory: {ex.Message}");
+        }
+    }
+
+
+    private async Task SubmitAlcoholHabit()
+    {
+        try
+        {
+            var url = newAlcoholHabit.Id == 0
+                ? "https://localhost:7056/api/AlcoholHabits/Create-AlcoholHabits"
+                : $"https://localhost:7056/api/AlcoholHabits/Update-AlcoholHabits?id={newAlcoholHabit.Id}";
+
+            var response = newAlcoholHabit.Id == 0
+                ? await Http.PostAsJsonAsync(url, newAlcoholHabit)
+                : await Http.PutAsJsonAsync(url, newAlcoholHabit);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Alcohol habit created successfully.");
+                await FetchAlcoholHabits();
+                showAlcoholHabitForm = false;
+            }
+            else
+            {
+                Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+        }
+    }
+
+    private async Task SubmitDrugHabit()
+    {
+        try
+        {
+            var url = newDrugHabit.Id == 0
+                ? "https://localhost:7056/api/DrugHabits/Create-DrugHabits"
+                : $"https://localhost:7056/api/DrugHabits/Update-DrugHabits?id={newDrugHabit.Id}";
+
+            var response = newDrugHabit.Id == 0
+                ? await Http.PostAsJsonAsync(url, newDrugHabit)
+                : await Http.PutAsJsonAsync(url, newDrugHabit);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Drug habit created successfully.");
+                await FetchDrugHabits();
+
+                // Fetch the drug directory name immediately after creation/update
+                var drugId = newDrugHabit.DrugDirectoryId;
+                await FetchDrugDirectory(drugId);
+
+                showDrugHabitForm = false;
+            }
+            else
+            {
+                Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting drug habit: {ex.Message}");
+        }
+
+        await FetchDrugDirectories();
+        await FetchDrugHabits();
+    }
+
+    private async Task FetchDrugDirectory(int drugId)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/api/DrugDirectory/Get-Drug/{drugId}");
+            response.EnsureSuccessStatusCode();
+            var drug = await response.Content.ReadFromJsonAsync<DrugDirectoryDto>();
+            if (drug != null)
+            {
+                drugDirectoryMap[drug.Id] = drug.DrugName;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching drug directory: {ex.Message}");
+        }
+    }
+
+
+    private void ToggleEatingHabitForm()
+    {
+        showEatingHabitForm = !showEatingHabitForm;
+        if (showEatingHabitForm)
+        {
+            newEatingHabit = new EatingHabitsDto { LifestyleRecordID = Id };
+        }
+    }
+
+    private void TogglePhysicalActivitiesForm()
+    {
+        showPhysicalActivityForm = !showPhysicalActivityForm;
+        if (showPhysicalActivityForm)
+        {
+            newPhysicalActivity = new PhysicalActivitiesDto { LifestyleRecordID = Id };
+        }
+    }
+
+    private void ToggleAlcoholHabitForm()
+    {
+        showAlcoholHabitForm = !showAlcoholHabitForm;
+        if (showAlcoholHabitForm)
+        {
+            newAlcoholHabit = new AlcoholHabitsDto { LifestyleRecordID = Id };
+        }
+    }
+
+    private void ToggleDrugHabitForm()
+    {
+        showDrugHabitForm = !showDrugHabitForm;
+        if (showDrugHabitForm)
+        {
+            newDrugHabit = new DrugHabitsDto { LifestyleRecordID = Id };
+        }
+    }
+
+    private async Task DeleteEatingHabit(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7056/Delete-EatingHabits?id={id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Eating habit deleted successfully.");
+                await FetchEatingHabits();
+            }
+            else
+            {
+                Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting eating habit: {ex.Message}");
+        }
+
+        
+        FetchEatingHabits();
+        StateHasChanged();
+    }
+
+    private async Task DeletePhysicalActivity(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7056/Delete-PhysicalActivities?id={id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Physical activity deleted successfully.");
+                await FetchPhysicalActivities();
+            }
+            else
+            {
+                Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting physical activity: {ex.Message}");
+        }
+        FetchPhysicalActivities();
+        StateHasChanged();
+    }
+
+    private async Task DeleteAlcoholHabit(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7056/Delete-AlcoholHabits?id={id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Alcohol habit deleted successfully.");
+                await FetchAlcoholHabits();
+            }
+            else
+            {
+                Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting alcohol habit: {ex.Message}");
+        }
+        FetchAlcoholHabits();
+        StateHasChanged();
+    }
+
+    private async Task DeleteDrugHabit(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7056/Delete-DrugHabits?id={id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Drug habit deleted successfully.");
+                await FetchDrugHabits();
+            }
+            else
+            {
+                Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting drug habit: {ex.Message}");
+        }
+        FetchDrugHabits();
+        StateHasChanged();
+    }
+
+    private void EditEatingHabit(EatingHabitsDto record)
+    {
+        newEatingHabit = record;
+        showEatingHabitForm = true;
+    }
+
+    private void EditPhysicalActivity(PhysicalActivitiesDto record)
+    {
+        newPhysicalActivity = record;
+        showPhysicalActivityForm = true;
+    }
+
+    private void EditAlcoholHabit(AlcoholHabitsDto record)
+    {
+        newAlcoholHabit = record;
+        showAlcoholHabitForm = true;
+    }
+
+    private void EditDrugHabit(DrugHabitsDto record)
+    {
+        newDrugHabit = record;
+        showDrugHabitForm = true;
+    }
+
+
+
+    private void BackToList()
+    {
+        NavigationManager.NavigateTo("/Lifestyle-Record");
+    }
+
+    private void Finish()
+    {
+        NavigationManager.NavigateTo("/Medical-360");
+    }
+}

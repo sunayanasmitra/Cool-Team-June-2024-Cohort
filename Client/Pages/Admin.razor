@@ -1,0 +1,44 @@
+﻿@page "/admin"
+@using HealthCareApp.Shared.Dto
+@using HealthCareApp.Shared.Dto.BasicInformation
+@inject HttpClient Http;
+
+<PageTitle>Login</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Style="margin-top:20px;">
+	<MudPaper Class="p-5 w-50">
+		<MudSimpleTable>
+			<thead>
+				<tr>
+					<th>@nameof(UserDto.email)</th>
+					<th>@nameof(UserDto.password)</th>
+
+				</tr>
+			</thead>
+			<tbody>
+				@foreach (var row in data)
+				{
+					<tr>
+
+						<td>@row.email</td>
+						<td>@row.password</td>
+
+					</tr>
+				}
+			</tbody>
+		</MudSimpleTable>
+	</MudPaper>
+</MudContainer>
+
+@code {
+	@inject ISnackbar Snackbar
+
+	List<UserDto> data { get; set; } = new List<UserDto>();
+	MudForm form { get; set; }
+	@inject NavigationManager navigationManager;
+	protected override async Task OnInitializedAsync()
+	{
+		data = await Http.GetFromJsonAsync<List<UserDto>>($"/api/account/GetUsers");
+		StateHasChanged();
+	}
+
+}

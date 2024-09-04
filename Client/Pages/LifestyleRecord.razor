@@ -1,0 +1,163 @@
+﻿@page "/Lifestyle-Record"
+@using HealthCareApp.Shared.Dto.LifestyleRecord
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Lifestyle Records</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudPaper Class="p-5 w-50">
+        <MudChip T="string" Label="true" style="margin-bottom:20px;  margin-top:20px;">Lifestyle Records</MudChip>
+
+        @if (lifestyleRecords != null && lifestyleRecords.Any())
+        {
+            @foreach (var record in lifestyleRecords)
+            {
+                <MudCard Style="margin-bottom:10px;">
+                    <MudCardContent>
+                        <MudText>
+                            <strong>Date:</strong> @record.RecordDate.ToString("d")
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" @onclick="() => UpdateRecord(record.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" @onclick="() => DeleteRecord(record.Id)" />
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <MudButton OnClick="CreateNewRecord" style="margin-top:20px;">
+                Create New Lifestyle Record
+            </MudButton>
+        }
+        else
+        {
+            <MudText>No existing lifestyle records found.</MudText>
+
+            <MudButton OnClick="CreateNewRecord" style="margin-top:20px;">
+                Create New Lifestyle Record
+            </MudButton>
+        }
+    </MudPaper>
+
+    <div style=" text-align: right; margin-bottom:20px;">
+        <MudButton OnClick="Finish" Style="margin-top:20px; margin-bottom:20px;">
+            Finish
+        </MudButton>
+    </div>
+</MudContainer>
+
+@code {
+    List<LifestyleRecordDto> lifestyleRecords { get; set; } = new List<LifestyleRecordDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchLifestyleRecords();
+    }
+
+    private async Task FetchLifestyleRecords()
+    {
+        try
+        {
+            var response = await Http.GetAsync("https://localhost:7056/Get-LifestyleRecords");
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Response content: {content}");
+
+            lifestyleRecords = await response.Content.ReadFromJsonAsync<List<LifestyleRecordDto>>() ?? new List<LifestyleRecordDto>();
+
+            Console.WriteLine($"Fetched records count: {lifestyleRecords.Count}");
+            foreach (var record in lifestyleRecords)
+            {
+                Console.WriteLine($"Record ID: {record.Id}, Date: {record.RecordDate}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching lifestyle records: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateRecord(int recordId)
+    {
+        try
+        {
+            var updatedRecordDto = new LifestyleRecordDto
+                {
+                    Id = recordId,
+                    RecordDate = DateTime.Now,
+                };
+
+            var response = await Http.PutAsJsonAsync($"https://localhost:7056/Update-LifestyleRecords?id={recordId}", updatedRecordDto);
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Record with ID: {recordId} updated successfully.");
+                NavigationManager.NavigateTo($"/Lifestyle-Questionnaire/{recordId}");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to update record with ID: {recordId}. Error: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating record with ID: {recordId}: {ex.Message}");
+        }
+        Console.WriteLine($"Update record with ID: {recordId}");
+    }
+
+    private async Task DeleteRecord(int recordId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7056/Delete-LifestyleRecord?id={recordId}");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Record with ID: {recordId} deleted successfully.");
+                await FetchLifestyleRecords();
+            }
+            else
+            {
+                Console.WriteLine($"Failed to delete record with ID: {recordId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting record with ID: {recordId}: {ex.Message}");
+        }
+    }
+
+    private async Task CreateNewRecord()
+    {
+        try
+        {
+            var newRecordDto = new LifestyleRecordDto
+                {
+                    RecordDate = DateTime.Now
+                };
+
+            var response = await Http.PostAsJsonAsync("https://localhost:7056/Create-LifestyleRecords", newRecordDto);
+            if (response.IsSuccessStatusCode)
+            {
+                var newRecordId = await response.Content.ReadFromJsonAsync<int>();
+                NavigationManager.NavigateTo($"/Lifestyle-Questionnaire/{newRecordId}");
+            }
+            else
+            {
+                Console.WriteLine($"Failed to create new record.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating lifestyle record: {ex.Message}");
+        }
+    }
+
+    private void Finish()
+    {
+        NavigationManager.NavigateTo("/Medical-360");
+    }
+
+}

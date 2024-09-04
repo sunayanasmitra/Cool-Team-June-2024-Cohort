@@ -1,0 +1,67 @@
+﻿@page "/account/user/register"
+@using HealthCareApp.Shared.Dto
+@using HealthCareApp.Shared.Dto.BasicInformation
+@inject PublicHttp publicHttp;
+@inject HttpClient Http;
+
+<PageTitle>Register</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Small" Style="margin-top:20px;">
+	<MudPaper Class="p-5 w-50">
+		<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700;">Register</MudChip>
+		<MudForm Spacing="2" @ref="@form">
+			<MudTextField Label="Email" InputType="InputType.Email"
+						  @bind-Value="data.email" />
+			<MudTextField Label="Password" InputType="InputType.Password"
+						  @bind-Value="data.password" />
+			<MudButton OnClick="(() =>SubmitForm())">Submit</MudButton>
+		</MudForm>
+	</MudPaper>
+</MudContainer>
+
+@code {
+	@inject ISnackbar Snackbar
+
+	UserDto data { get; set; } = new UserDto();
+	MudForm form { get; set; }
+	@inject NavigationManager navigationManager;
+	protected override async Task OnInitializedAsync()
+	{
+	}
+	private async void SubmitForm()
+	{
+		var res = await publicHttp.Client.GetAsync($"/User/Register?email={data.email}&password={data.password}");
+		if (res.IsSuccessStatusCode)
+		{
+			try
+			{
+				var res2 = await Http.GetFromJsonAsync<BasicInformationDto>("Get-BasicInformation");
+				if (res2?.FirstName == null)
+				{
+					Snackbar.Add($"User Registration Successful");
+					if (data.email.ToLower() == "admin@example.com")
+						navigationManager.NavigateTo("/admin");
+					else
+						navigationManager.NavigateTo("/basic-information");
+				}
+				else
+				{
+					Snackbar.Add($"User Signin Successful");
+					if (data.email.ToLower() == "admin@example.com")
+						navigationManager.NavigateTo("/admin");
+					else
+						navigationManager.NavigateTo("/Medical-360");
+				}
+			}
+			catch
+			{
+				if (data.email.ToLower() == "admin@example.com")
+					navigationManager.NavigateTo("/admin");
+				else
+					navigationManager.NavigateTo("/basic-information");
+				Snackbar.Add($"Sorry there was an issue try again");
+			}
+
+
+		}
+	}
+}

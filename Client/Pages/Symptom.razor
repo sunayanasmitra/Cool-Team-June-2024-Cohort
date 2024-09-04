@@ -1,0 +1,143 @@
+﻿@page "/symptom"
+@using HealthCareApp.Shared.Dto.MedicalRecord
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Symptom</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudPaper Class="p-5 w-75">
+        <MudChip T="string" Label="true" style="margin-bottom:20px; margin-top:20px; font-weight:700;">Manage Symptom</MudChip>
+        <MudForm Spacing="2" @ref="@form">
+            <MudSelect Label="Symptom" @bind-Value="data.SymptomDirectoryId">
+                @foreach (var symptom in symptomDirectories)
+                {
+                    <MudSelectItem Value="symptom.Id">@symptom.SymptomName</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudDatePicker Label="Start Date" Editable="true" @bind-Date="_startDate" />
+            <MudDatePicker Label="End Date" Editable="true" @bind-Date="_endDate" />
+            <MudStack Row="true" Justify="Justify.Center" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="(() =>SubmitForm())">Submit</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.Send" OnClick="(() =>goNext())">Next</MudButton>
+            </MudStack>
+        </MudForm>
+
+        @if(symptom.Count == 0)
+        {
+            <p>No data to display here</p>
+        }
+        else 
+        {
+            <MudSimpleTable Items="symptom" Hover="true">
+                <thead>
+                    <MudTh>Symptom Name</MudTh>
+                    <MudTh>Start Date</MudTh>
+                    <MudTh>End Date</MudTh>
+                    <MudTh>Actions</MudTh>
+                </thead>
+                <tbody>
+                    @foreach (var s in symptom)
+                    {
+                        <MudTr>
+                            <MudTd>@s.SymptomDirectoryDto.SymptomName</MudTd>
+                            <MudTd>@s.StartDate.ToShortDateString()</MudTd>
+                            <MudTd>@s.EndDate.ToShortDateString()</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="(() => DeleteSymptom(s.Id))" />
+                            </MudTd>
+                        </MudTr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+
+@code {
+
+    @inject ISnackbar Snackbar
+    @inject NavigationManager navigation
+
+    private SymptomDto data { get; set; } = new SymptomDto();
+    private List<SymptomDto> symptom { get; set; } = new List<SymptomDto>();
+    private List<SymptomDirectoryDto> symptomDirectories { get; set; } = new List<SymptomDirectoryDto>();
+    MudForm form { get; set; }
+
+    public DateTime? _startDate { get; set; } = DateTime.Now;
+    public DateTime? _endDate { get; set; } = DateTime.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSymptoms();
+        await LoadSymptomDirectory();
+    }
+
+    private async Task LoadSymptoms()
+    {
+        symptom = await Http.GetFromJsonAsync<List<SymptomDto>>("Get-Symptom") ?? new List<SymptomDto>();
+    }
+
+    public async Task LoadSymptomDirectory()
+    {
+        symptomDirectories = await Http.GetFromJsonAsync<List<SymptomDirectoryDto>>("Get-SymptomDirectories") ?? new List<SymptomDirectoryDto>();
+    }
+
+    private async void SubmitForm()
+    {
+
+        if (_startDate == null || _endDate == null)
+        {
+            Snackbar.Add("Select all options", Severity.Error);
+            return;
+        }
+
+        data.StartDate = (DateTime)_startDate!;
+        data.EndDate = (DateTime)_endDate!;
+        data.SymptomDirectoryDto.SymptomName = "";
+
+        HttpResponseMessage response;
+        if (data.Id == 0)
+        {
+            response = await Http.PostAsJsonAsync("/Create-Symptom", data);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Symptom added.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("No Symptom Selected.", Severity.Error);
+            }
+        }
+
+        // Refresh the list
+        await LoadSymptoms();
+        // Reset the form
+        data = new SymptomDto();
+        form?.ResetAsync();
+
+        StateHasChanged();
+    }
+
+    public async void goNext()
+    {
+        navigation.NavigateTo("/allergy");
+    }
+
+    private async Task DeleteSymptom(int id)
+    {
+        var deleteResponse = await Http.DeleteAsync($"/Delete-Symptom/{id}");
+        if (deleteResponse.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Symptom deleted.", Severity.Success);
+            await LoadSymptoms(); // Refresh the list
+        }
+        else
+        {
+            Snackbar.Add("Failed to delete Symptom.", Severity.Error);
+        }
+    }
+}
+

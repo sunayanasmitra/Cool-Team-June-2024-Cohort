@@ -1,0 +1,77 @@
+﻿@page "/Basic-Information"
+@using HealthCareApp.Shared.Dto.BasicInformation
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Basic Information</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Small" Style="margin-top:20px;">
+	<MudPaper Class="p-5 w-50">
+		<MudChip T="string" Label="true" style="margin-bottom:20px; font-weight:700;">Basic Information</MudChip>
+		<MudForm Spacing="2" @ref="@form">
+			<MudTextField Label="First Name"
+						  @bind-Value="data.FirstName" />
+			<MudTextField Label="Last Name"
+						  @bind-Value="data.LastName" />
+			<MudSelect T="char" @bind-Value="data.Gender" Label="Gender" AnchorOrigin="Origin.BottomCenter">
+				<MudSelectItem Value="@('M')" />
+				<MudSelectItem Value="@('F')" />
+			</MudSelect>
+			<MudDatePicker Label="Date of Birth" Editable="true"
+						   @bind-Date="_date" />
+			<MudTextField Label="Phone Number"
+						  @bind-Value="data.PhoneNumber" />
+			<MudStack Row="true" Justify="Justify.Center" Spacing="2">
+				<MudButton OnClick="(() =>SubmitForm())">Submit</MudButton>
+				<MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="!isSubmitClicked" EndIcon="@Icons.Material.Filled.Send" OnClick="(() =>goNext())">Next</MudButton>
+			</MudStack>
+		</MudForm>
+	</MudPaper>
+</MudContainer>
+
+
+@code {
+
+	@inject ISnackbar Snackbar
+
+	BasicInformationDto data { get; set; } = new BasicInformationDto();
+	MudForm form { get; set; }
+	Boolean isSubmitClicked = false;
+	@inject NavigationManager navigation;
+	public DateTime? _date { get; set; } = DateTime.Now;
+
+	protected override async Task OnInitializedAsync()
+	{
+		data = await Http.GetFromJsonAsync<BasicInformationDto>("Get-BasicInformation") ?? new BasicInformationDto();
+		_date = data.DOB;
+		StateHasChanged();
+	}
+
+	private void goNext()
+	{
+		navigation.NavigateTo("/medical-document");
+	}
+
+	private async void SubmitForm()
+	{
+		data.ApplicationUserId = "";
+		data.DOB = (DateTime)_date!;
+		var res = await Http.PostAsJsonAsync<BasicInformationDto>("/Create-BasicInformation", data);
+
+		if (!res.IsSuccessStatusCode)
+		{
+			var res2 = await Http.PostAsJsonAsync("/Update-BasicInformation", data);
+			Snackbar.Add($"Basic Information Record Updated");
+		}
+		else
+		{
+			Snackbar.Add($"Basic Information Record Created");
+		}
+		data = await Http.GetFromJsonAsync<BasicInformationDto>("Get-BasicInformation") ?? new BasicInformationDto();
+		_date = data.DOB;
+		isSubmitClicked = true;
+		StateHasChanged();
+	}
+
+
+}

@@ -1,0 +1,285 @@
+﻿@page "/medical-document"
+@using HealthCareApp.Shared.Dto.MedicalDocument
+@using Microsoft.AspNetCore.Authorization
+@using System.Web
+@using System.Text.Json
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Medical Document</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+    <MudPaper class="pa-8" Style="width: 70%; height: 50%; margin: auto;">
+        <MudText>
+            Upload your file here (Upto 10 MB)
+        </MudText>
+
+        <MudStack Style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+            <MudFileUpload T="IReadOnlyList<IBrowserFile>"
+                           @ref="@_fileUpload"
+                           OnFilesChanged="OnInputFileChanged"
+                           AppendMultipleFiles
+                           Hidden="@false"
+                           InputClass="absolute mud-width-full mud-height-full overflow-hidden z-10"
+                           InputStyle="opacity:0"
+                           tabindex="-1"
+                           @ondrop="@ClearDragClass"
+                           @ondragenter="@SetDragClass"
+                           @ondragleave="@ClearDragClass"
+                           @ondragend="@ClearDragClass">
+                <ActivatorContent>
+                    <MudPaper Height="300px"
+                              Outlined="true"
+                              Class="@_dragClass">
+                        <MudText Typo="Typo.h6">
+                            Drag and drop files here or click
+                        </MudText>
+                        @foreach (var file in _fileNames)
+                        {
+                            <MudChip T="string"
+                                     Color="Color.Dark"
+                                     Text="@file"
+                                     tabindex="-1" />
+                        }
+                    </MudPaper>
+                </ActivatorContent>
+            </MudFileUpload>
+            <MudToolBar Gutters="@false"
+                        Class="relative d-flex justify-end gap-4">
+                <MudButton Color="Color.Primary"
+                           OnClick="@OpenFilePickerAsync"
+                           Variant="Variant.Filled">
+                    Open file picker
+                </MudButton>
+                <MudButton Color="Color.Primary"
+                           Disabled="@(!_fileNames.Any())"
+                           OnClick="@Upload"
+                           Variant="Variant.Filled">
+                    Upload
+                </MudButton>
+                <MudButton Color="Color.Error"
+                           Disabled="@(!_fileNames.Any())"
+                           OnClick="@ClearAsync"
+                           Variant="Variant.Filled">
+                    Clear
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.Send" OnClick="(() =>goNext())">Upload Vaccine</MudButton>
+            </MudToolBar>
+        </MudStack>
+
+        <br />
+        <h3>Uploaded Files</h3>
+        <br />
+        @if (isLoading)
+        {
+            <p>Loading...</p>
+        }
+        else if (documents != null && documents.Any())
+        {
+            <ol class="uploaded-files-list">
+                @foreach (var doc in documents)
+                {
+                    <li>
+                        @Path.GetFileName(doc.FilePath)
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => DeleteDocument(doc.Id)" />
+                    </li>
+                }
+            </ol>
+        }
+        else
+        {
+            <p>No medical document to display.</p>
+        }
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .uploaded-files-list {
+        list-style-type: disc;
+        margin: 0;
+        padding-left: 20px;
+        font-style: italic;
+    }
+
+        .uploaded-files-list li {
+            margin-bottom: 2px;
+        }
+</style>
+
+
+@code {
+    #nullable enable
+    private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full";
+    private string _dragClass = DefaultDragClass;
+    private readonly List<IBrowserFile> _files = new();
+    private readonly List<string> _fileNames = new();
+    private MudFileUpload<IReadOnlyList<IBrowserFile>>? _fileUpload;
+    private string validationMessage;
+    private List<MedicalDocumentDto> documents = new List<MedicalDocumentDto>();
+    private bool isLoading = true;
+    @inject NavigationManager navigation
+
+    private async Task ClearAsync()
+    {
+        await (_fileUpload?.ClearAsync() ?? Task.CompletedTask);
+        _fileNames.Clear();
+        _files.Clear();
+        ClearDragClass();
+    }
+
+    private Task OpenFilePickerAsync()
+        => _fileUpload?.OpenFilePickerAsync() ?? Task.CompletedTask;
+
+    private void OnInputFileChanged(InputFileChangeEventArgs e)
+    {
+        validationMessage = null; // clear any previous validation message
+
+        ClearDragClass();
+        var files = e.GetMultipleFiles();
+        foreach (var file in files)
+        {
+
+            if (!IsValidFileType(file.Name))
+            {
+                validationMessage = "Invalid file type. Please upload a .csv or .xlsx file.";
+                Snackbar.Add(validationMessage, Severity.Error);
+                return;
+            }
+
+            _fileNames.Add(file.Name);
+            _files.Add(file);
+        }
+    }
+
+    private bool IsValidFileType(string fileName)
+    {
+        var validExtensions = new[] { ".csv", ".xlsx" };
+        var fileExtension = System.IO.Path.GetExtension(fileName).ToLower();
+        return validExtensions.Contains(fileExtension);
+    }
+
+    //get medical document from database
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        //check if the user is authenticated
+        if (user.Identity.IsAuthenticated)
+        {
+            // await Task.Delay(3000);
+            await LoadDocument();
+        }
+        else
+        {
+            Snackbar.Add("User not authenticated.", Severity.Warning);
+        }
+
+        isLoading = false;
+    }
+
+    private async Task LoadDocument()
+    {
+        try
+        {
+            var response = await Http.GetAsync("/Get-MedicalDocument");
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Attempt to deserialize the response content
+                documents = JsonSerializer.Deserialize<List<MedicalDocumentDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<MedicalDocumentDto>();
+            }
+            else
+            {
+                Snackbar.Add($"Failed to load document. Status Code: {response.StatusCode}", Severity.Error);
+            }
+        }
+        catch (JsonException jsonEx)
+        {
+            Snackbar.Add($"JSON Error: {jsonEx.Message}", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Upload()
+    {
+        try
+        {
+            if (_files == null || !_files.Any())
+            {
+                Snackbar.Add("No files selected for upload.", Severity.Warning);
+                return;
+            }
+
+            foreach (var file in _files)
+            {
+                using var content = new MultipartFormDataContent();
+                using var fileStream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 10);
+                using var streamContent = new StreamContent(fileStream);
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+                content.Add(streamContent, "file", file.Name);
+
+                var response = await Http.PostAsync("api/MedicalDocument/upload", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("File uploaded successfully.", Severity.Success);
+                    // Refresh the document list
+                    await LoadDocument();
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                {
+                    Snackbar.Add("A file with the same name already exists.", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add("Failed to upload file. Try again!", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteDocument(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"Delete-MedicalDocument/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("File deleted successfully.", Severity.Success);
+                // Refresh the document list
+                await LoadDocument();
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete file. Try again!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private void SetDragClass()
+        => _dragClass = $"{DefaultDragClass} mud-border-primary";
+
+    private void ClearDragClass()
+        => _dragClass = DefaultDragClass;
+
+    public async void goNext()
+    {
+        navigation.NavigateTo("/vaccine-upload");
+    }
+}

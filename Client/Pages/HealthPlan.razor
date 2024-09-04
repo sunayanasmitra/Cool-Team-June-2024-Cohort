@@ -1,0 +1,677 @@
+﻿@page "/Health-Plan"
+@using HealthCareApp.Shared.Dto.HealthPlan
+@using HealthCareApp.Shared.Dto.LifestyleRecord
+@using HealthCareApp.Shared.Dto.MedicalRecord
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@using System.Text.Json
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Health Plan</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small">
+    <div style="display: flex; gap: 20px; margin-top: 20px; margin-bottom: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 20px; flex: 1;">
+            <MudPaper Height="130px" Width="100%" Square="true" Style="border-radius: 10px; background-color: #f0f0f0; color: black; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); overflow-y: auto; overflow-x: hidden; max-height: 130px;">
+                <MudText Variant="h6" Style="margin-bottom: 10px; margin-top: 10px; padding-left: 10px; color: black; font-weight: bold;">
+                    Diet Plan
+                </MudText>
+                @if (dietPlans != null && dietPlans.Any())
+                {
+                    <div style="padding: 10px;">
+                        <ul style="color: black; font-size: 10px; list-style-type: disc;">
+                            @foreach (var plan in dietPlans)
+                            {
+                                <MudCheckBox T="bool" Value="@plan.IsChecked" ValueChanged="@(isChecked => OnDietCheckboxChanged(plan, isChecked))" Label="@plan.DietGoal" Size="Size.Small">
+                                    <!-- <div style="font-size: 12px;">
+                                        @plan.DietGoal
+                                     </div>-->
+                                </MudCheckBox>
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding: 10px; font-size: 10px; color: red;">
+                        No diet plan found.
+                    </div>
+                }
+            </MudPaper>
+
+            <MudPaper Height="130px" Width="100%" Square="true" Style="border-radius: 10px; background-color: #f0f0f0; color: black; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); overflow-y: auto; overflow-x: hidden; max-height: 130px;">
+                <MudText Variant="h6" Style="margin-bottom: 10px; margin-top: 10px; padding-left: 10px; color: black; font-weight: bold;">
+                    Workout Plan
+                </MudText>
+                @if (workoutPlans != null && workoutPlans.Any())
+                {
+                    <div style="padding: 10px; font-size: 10px;">
+                        <ul style="color: black; font-size: 10px; list-style-type: disc;">
+                            @foreach (var plan in workoutPlans)
+                            {
+                                <MudCheckBox T="bool" Value="@plan.IsChecked" ValueChanged="@(isChecked => OnWorkoutCheckboxChanged(plan, isChecked))" Label="@plan.WorkoutGoal" Size="Size.Small"> 
+                                   <!-- <div style="font-size: 12px;">
+                                        @plan.WorkoutGoal
+                                     </div>-->
+                                </MudCheckBox>
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding: 10px; font-size: 10px; color: red;">
+                        No workout plan found.
+                    </div>
+                }
+            </MudPaper>
+            <MudPaper Height="130px" Width="100%" Square="true" Style="border-radius: 10px; background-color: #f0f0f0; color: black; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); overflow-y: auto; overflow-x: hidden; max-height: 130px;">
+                <MudText Variant="h6" Style="margin-bottom: 10px; margin-top: 10px; padding-left: 10px; color: black; font-weight: bold;">
+                    Other Reminders
+                </MudText>
+                @if (reminders != null && reminders.Any())
+                {
+                    <div style="padding: 10px; font-size: 10px; color: black;">
+                        <ul style="color: black; font-size: 10px; list-style-type: disc;">
+                            @foreach (var reminder in reminders)
+                            {
+                                <MudCheckBox T="bool" Value="@reminder.IsChecked" ValueChanged="@(isChecked => OnReminderCheckboxChanged(reminder, isChecked))" Label="@reminder.Reminder" Size="Size.Small">
+                                    <!--<div style="font-size: 12px;">
+                                        @reminder.Reminder
+                                    </div>-->
+                                </MudCheckBox>
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding: 10px; font-size: 10px; color: red;">
+                        No reminders found.
+                    </div>
+                }
+            </MudPaper>
+
+
+
+        </div>
+
+        <div style="flex: 2; display: flex; flex-direction: column; gap: 20px;">
+            <MudPaper Height="300px" Width="100%" Square="true" Style="border-radius: 10px; background-color: #C9DEE4; color: black; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); overflow-y: auto; overflow-x: hidden; max-height: 300px;">
+                <MudText Variant="h5" Style="margin-bottom: 10px; margin-top: 10px; padding-left: 10px; color: black; font-weight: bold;">
+                    You are at risk of...
+                </MudText>
+                @if (healthRisks != null && healthRisks.Any())
+                {
+                    <div style="padding: 10px;">
+                        <ul style="color: black; list-style-type: disc; padding-left: 20px;">
+                            @foreach (var risk in healthRisks)
+                            {
+                                <li>
+                                    @risk.Risk
+                                    @if (!string.IsNullOrEmpty(risk.Reason))
+                                    {
+                                        <ul style="list-style-type: circle; padding-left: 40px;">
+                                            <li>@risk.Reason</li>
+                                        </ul>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </MudPaper>
+
+            <div style="display: flex; gap: 20px;">
+                @((MarkupString)GetWellnessStatus())
+                <MudPaper Height="110px" Width="50%" Square="true" Style=" text-align: center; border-radius: 10px; background-color: #C9DEE4; color: black; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); overflow-y: auto; overflow-x: hidden; max-height: 110px;">
+                    <MudLink Href="/Chatbot">
+                        <MudText Variant="h5" Style="margin-bottom: 10px; margin-top: 10px; color: black; font-weight: bold;">
+                            Other Concerns?
+                        </MudText>
+                        Click here to discuss with our AI chatbot!
+                    </MudLink>
+                </MudPaper>
+            </div>
+        </div>
+    </div>
+</MudContainer>
+
+@code {
+    HealthPlanDto healthPlan { get; set; } = new HealthPlanDto();
+    List<HealthRiskDto> healthRisks { get; set; } = new List<HealthRiskDto>();
+    List<DietPlanDto> dietPlans { get; set; } = new List<DietPlanDto>();
+    List<WorkoutPlanDto> workoutPlans { get; set; } = new List<WorkoutPlanDto>();
+    List<RemindersDto> reminders { get; set; } = new List<RemindersDto>();
+
+    List<PhysicalActivitiesDto> physicalActivities { get; set; } = new List<PhysicalActivitiesDto>();
+    List<EatingHabitsDto> eatingHabits { get; set; } = new List<EatingHabitsDto>();
+
+
+    int id = 0;
+    private int mostRecentRecordId = 0;
+
+
+    int checkCount = 0;
+    int numChecked = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await Http.GetAsync("https://localhost:7056/Get-HealthPlan");
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                await CreateHealthPlan();
+            }
+            else
+            {
+                response.EnsureSuccessStatusCode();
+                var healthPlans = await response.Content.ReadFromJsonAsync<List<HealthPlanDto>>();
+                if (healthPlans != null && healthPlans.Any())
+                {
+                    var healthPlan = healthPlans.First();
+                    id = healthPlan.Id;
+                    Console.WriteLine($"Id: {healthPlan.Id}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching health plan: {ex.Message}");
+        }
+
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-HealthRiskByPlanId?healthPlanId={id}");
+            response.EnsureSuccessStatusCode();
+            healthRisks = await response.Content.ReadFromJsonAsync<List<HealthRiskDto>>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching health risks: {ex.Message}");
+        }
+
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-DietPlanByPlanId?healthPlanId={id}");
+            response.EnsureSuccessStatusCode();
+            dietPlans = await response.Content.ReadFromJsonAsync<List<DietPlanDto>>();
+            checkCount += dietPlans.Count;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching diet plans: {ex.Message}");
+        }
+
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-WorkoutPlanByPlanId?healthPlanId={id}");
+            response.EnsureSuccessStatusCode();
+            workoutPlans = await response.Content.ReadFromJsonAsync<List<WorkoutPlanDto>>();
+            checkCount += workoutPlans.Count;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching workout plans: {ex.Message}");
+        }
+
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-RemindersByPlanId?healthPlanId={id}");
+            response.EnsureSuccessStatusCode();
+            reminders = await response.Content.ReadFromJsonAsync<List<RemindersDto>>();
+            checkCount += reminders.Count;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching reminders: {ex.Message}");
+        }
+
+        numChecked += reminders.Count(r => r.IsChecked);
+        numChecked += workoutPlans.Count(r => r.IsChecked);
+        numChecked += dietPlans.Count(r => r.IsChecked);
+
+        Console.WriteLine("checkCount = " + checkCount);
+        Console.WriteLine("numChecked = " + numChecked);
+    }
+
+    async Task CreateHealthPlan()
+    {
+
+        var newHealthPlan = new HealthPlanDto
+        {
+            DateOfPlan = DateTime.Now
+        };
+        var createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-HealthPlan", newHealthPlan);
+        createResponse.EnsureSuccessStatusCode();
+        Console.WriteLine("Health plan created successfully.");
+
+        var response = await Http.GetAsync("https://localhost:7056/Get-HealthPlan");
+        response.EnsureSuccessStatusCode();
+        var healthPlans = await response.Content.ReadFromJsonAsync<List<HealthPlanDto>>();
+        if (healthPlans != null && healthPlans.Any())
+        {
+            var healthPlan = healthPlans.First();
+            id = healthPlan.Id;
+            Console.WriteLine($"Id: {healthPlan.Id}");
+        }
+
+        await FetchMostRecentLifestyleRecord();
+        await FetchPhysicalActivities();
+        await FetchEatingHabits();
+        await GenerateWorkoutPlans();
+        await GenerateDietPlans();
+
+
+        var newReminder = new RemindersDto { HealthPlanID = id, Reminder = "Drink 8 glasses of water", IsChecked = false };
+        createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-Reminder", newReminder);
+        createResponse.EnsureSuccessStatusCode();
+        Console.WriteLine("Reminder created successfully.");
+
+        newReminder = new RemindersDto { HealthPlanID = id, Reminder = "Get 8 hours of sleep", IsChecked = false };
+        createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-Reminder", newReminder);
+        createResponse.EnsureSuccessStatusCode();
+        Console.WriteLine("Reminder created successfully.");
+
+        newReminder = new RemindersDto { HealthPlanID = id, Reminder = "Take medications", IsChecked = false };
+        createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-Reminder", newReminder);
+        createResponse.EnsureSuccessStatusCode();
+        Console.WriteLine("Reminder created successfully.");
+
+        await ProcessApiResponse();
+
+    }
+
+    private async Task UpdateDietPlan(DietPlanDto plan)
+    {
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"https://localhost:7056/Update-DietPlan?id={plan.Id}", plan);
+            response.EnsureSuccessStatusCode();
+            Console.WriteLine("Diet plan updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating diet plan: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateWorkoutPlan(WorkoutPlanDto plan)
+    {
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"https://localhost:7056/Update-WorkoutPlan?id={plan.Id}", plan);
+            response.EnsureSuccessStatusCode();
+            Console.WriteLine("Workout plan updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating workout plan: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateReminder(RemindersDto reminder)
+    {
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"https://localhost:7056/Update-Reminder?id={reminder.Id}", reminder);
+            response.EnsureSuccessStatusCode();
+            Console.WriteLine("Reminder updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating reminder: {ex.Message}");
+        }
+    }
+
+    private async Task OnWorkoutCheckboxChanged(WorkoutPlanDto plan, bool isChecked)
+    {
+        Console.WriteLine($"Checkbox changed: {plan.WorkoutGoal}, IsChecked: {isChecked}");
+        plan.IsChecked = isChecked;
+        await UpdateWorkoutPlan(plan);
+
+        UpdateCheckedCount();
+    }
+
+    private async Task OnReminderCheckboxChanged(RemindersDto reminder, bool isChecked)
+    {
+        Console.WriteLine($"Checkbox changed: {reminder.Reminder}, IsChecked: {isChecked}");
+        reminder.IsChecked = isChecked;
+        await UpdateReminder(reminder);
+
+        UpdateCheckedCount();
+    }
+
+    private async Task OnDietCheckboxChanged(DietPlanDto plan, bool isChecked)
+    {
+        Console.WriteLine($"Checkbox changed: {plan.DietGoal}, IsChecked: {isChecked}");
+        plan.IsChecked = isChecked;
+        await UpdateDietPlan(plan);
+
+        UpdateCheckedCount();
+    }
+
+    private void UpdateCheckedCount()
+    {
+        numChecked = reminders.Count(r => r.IsChecked) + workoutPlans.Count(r => r.IsChecked) + dietPlans.Count(r => r.IsChecked);
+    }
+
+    private async Task FetchPhysicalActivities()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-PhysicalActivities-By-LifestyleRecord?lifestyleRecordId={mostRecentRecordId}");
+            response.EnsureSuccessStatusCode();
+            physicalActivities = await response.Content.ReadFromJsonAsync<List<PhysicalActivitiesDto>>() ?? new List<PhysicalActivitiesDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching physical activities: {ex.Message}");
+            physicalActivities = new List<PhysicalActivitiesDto>();
+        }
+    }
+
+    private async Task FetchEatingHabits()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7056/Get-EatingHabits-By-LifestyleRecord?lifestyleRecordId={mostRecentRecordId}");
+            response.EnsureSuccessStatusCode();
+            eatingHabits = await response.Content.ReadFromJsonAsync<List<EatingHabitsDto>>() ?? new List<EatingHabitsDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching eating habits: {ex.Message}");
+            eatingHabits = new List<EatingHabitsDto>();
+        }
+    }
+
+    private async Task FetchMostRecentLifestyleRecord()
+    {
+        try
+        {
+            var response = await Http.GetAsync("https://localhost:7056/Get-LifestyleRecords");
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            var lifestyleRecords = await response.Content.ReadFromJsonAsync<List<LifestyleRecordDto>>() ?? new List<LifestyleRecordDto>();
+
+
+            var mostRecentRecord = lifestyleRecords.OrderByDescending(record => record.RecordDate).FirstOrDefault();
+
+            if (mostRecentRecord != null)
+            {
+                mostRecentRecordId = mostRecentRecord.Id;
+                Console.WriteLine($"Most Recent Record ID: {mostRecentRecord.Id}, Date: {mostRecentRecord.RecordDate}");
+            }
+            else
+            {
+                Console.WriteLine("No lifestyle records found.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching lifestyle records: {ex.Message}");
+        }
+    }
+
+    public int? GetMostRecentRecordId()
+    {
+        return mostRecentRecordId;
+    }
+
+    public async Task<List<WorkoutPlanDto>> GenerateWorkoutPlans()
+    {
+        if (!CardioHealth())
+        {
+            await AddWorkoutPlan("Exercise that help with cardiovascular health (e.g., Running, Walking, Cycling, Swimming).");
+        }
+
+        if (!StrengthTraining())
+        {
+            await AddWorkoutPlan("Do some strength training exercises.");
+        }
+
+        if (!Flexibility())
+        {
+            await AddWorkoutPlan("Do an exercise that helps with flexibility and balance.");
+        }
+
+        if (AnyActivityNeedsRest())
+        {
+            await AddWorkoutPlan("Give yourself a day to rest this week");
+        }
+
+        return workoutPlans;
+    }
+
+    private async Task AddWorkoutPlan(string goal)
+    {
+        var newWorkoutPlan = new WorkoutPlanDto
+            {
+                HealthPlanID = id,
+                WorkoutGoal = goal,
+                IsChecked = false
+            };
+
+        var createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-WorkoutPlan", newWorkoutPlan);
+        createResponse.EnsureSuccessStatusCode();
+        Console.WriteLine("Workout plan created successfully.");
+    }
+
+    private bool CardioHealth()
+    {
+        return physicalActivities.Any(activity =>
+            activity.ActivityDirectoryId == 1 || activity.ActivityDirectoryId == 2 ||
+            activity.ActivityDirectoryId == 4 || activity.ActivityDirectoryId == 5 ||
+            activity.ActivityDirectoryId == 6 || activity.ActivityDirectoryId == 8 ||
+            activity.ActivityDirectoryId == 9 || activity.ActivityDirectoryId == 10 ||
+            activity.ActivityDirectoryId == 11 || activity.ActivityDirectoryId == 14 ||
+            activity.ActivityDirectoryId == 15 || activity.ActivityDirectoryId == 16 ||
+            activity.ActivityDirectoryId == 18 || activity.ActivityDirectoryId == 20 ||
+            activity.ActivityDirectoryId == 21 || activity.ActivityDirectoryId == 22 ||
+            activity.ActivityDirectoryId == 23 || activity.ActivityDirectoryId == 24 ||
+            activity.ActivityDirectoryId == 25 || activity.ActivityDirectoryId == 26 ||
+            activity.ActivityDirectoryId == 30);
+    }
+
+    private bool StrengthTraining()
+    {
+        return physicalActivities.Any(activity => activity.ActivityDirectoryId == 12 || activity.ActivityDirectoryId == 13 || activity.ActivityDirectoryId == 17 || activity.ActivityDirectoryId == 27 || activity.ActivityDirectoryId == 28);
+
+    }
+
+    private bool Flexibility()
+    {
+        return physicalActivities.Any(activity => activity.ActivityDirectoryId == 3 || activity.ActivityDirectoryId == 7 || activity.ActivityDirectoryId == 29);
+    }
+
+    private bool AnyActivityNeedsRest()
+    {
+        return physicalActivities.Any(activity => activity.TimesPerWeek >= 7);
+    }
+
+    public async Task<List<DietPlanDto>> GenerateDietPlans()
+    {
+        Console.WriteLine("GenerateDietPlans called");
+        var recentEatingHabits = eatingHabits.Last();
+
+        Console.WriteLine($"CaloriesPerDay: {recentEatingHabits.CaloriesPerDay}");
+        Console.WriteLine($"SugarIntakePerDay: {recentEatingHabits.SugarIntakePerDay}");
+
+        Console.WriteLine(recentEatingHabits);
+
+        if (recentEatingHabits.CaloriesPerDay > 2500)
+        {
+            await AddDietPlan("Reduce your daily calorie intake.");
+        }
+        if (recentEatingHabits.SugarIntakePerDay > 50)
+        {
+            await AddDietPlan("Reduce your sugar intake.");
+        }
+
+        if (recentEatingHabits.FatIntakePerDay > 70)
+        {
+            await AddDietPlan("Reduce your fat intake.");
+        }
+
+        if (recentEatingHabits.ProteinIntakePerDay < 50)
+        {
+            await AddDietPlan("Increase your protein intake.");
+        }
+
+        if (recentEatingHabits.VegetablePercentOfIntake < 0.30)
+        {
+            await AddDietPlan("Increase your vegetable intake.");
+        }
+
+        if (recentEatingHabits.MeatPercentOfIntake > 0.30)
+        {
+            await AddDietPlan("Reduce your meat intake.");
+        }
+
+        return dietPlans;
+    }
+
+    private async Task AddDietPlan(string goal)
+    {
+        Console.WriteLine($"AddDietPlan called with goal: {goal}");
+
+        var newDietPlan = new DietPlanDto
+        {
+            HealthPlanID = id,
+            DietGoal = goal,
+            IsChecked = false
+        };
+
+        var createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-DietPlan", newDietPlan);
+        createResponse.EnsureSuccessStatusCode();
+        Console.WriteLine("Diet Plan created successfully.");
+    }
+
+    private string GetWellnessStatus()
+    {
+        if (checkCount > 0)
+        {
+            double ratio = (double)numChecked / checkCount;
+
+            if (ratio < 0.5)
+            {
+                return @"
+                <MudPaper Height=""110px"" Width=""50%"" Square=""true"" Style=""border-radius: 10px; background-color: #F3C894; color: black; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); overflow-y: auto; overflow-x: hidden; max-height: 110px;"">
+                    <div Style=""text-align: center; width: 100%; margin-top: 10px;"">
+                        Today you are...<br />
+                        <MudText Variant=""h5"" Style=""margin-bottom: 10px; margin-top: 10px; padding-left: 10px; color: black; font-weight: bold;"">
+                            Behind
+                        </MudText><br />
+                        with your wellness goals.
+                    </div>
+                </MudPaper>";
+            }
+            else
+            {
+                return @"
+                <MudPaper Height=""110px"" Width=""50%"" Square=""true"" Style=""border-radius: 10px; background-color: #9AF590; color: black; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); overflow-y: auto; overflow-x: hidden; max-height: 110px;"">
+                    <div Style=""text-align: center; width: 100%; margin-top: 10px;"">
+                        Today you are...<br />
+                        <MudText Variant=""h5"" Style=""margin-bottom: 10px; margin-top: 10px; padding-left: 10px; color: black; font-weight: bold;"">
+                            On Track
+                        </MudText><br />
+                        with your wellness goals.
+                    </div>
+                </MudPaper>";
+            }
+        }
+        else
+        {
+            return "checkCount must be greater than zero.";
+        }
+    }
+
+    public async Task ProcessApiResponse()
+    {
+        try
+        {
+            var symptomResponse = await Http.GetAsync("https://localhost:7056/Get-Symptom");
+
+            if (symptomResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                HealthRiskDto healthRisk = new HealthRiskDto
+                    {
+                        HealthPlanID = id,
+                        Risk = "You have not entered enough data to determine this",
+                        Reason = "Please fill all the data"
+                    };
+
+                try
+                {
+                    var createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-HealthRisk", healthRisk);
+                    createResponse.EnsureSuccessStatusCode();
+                    Console.WriteLine("Health risk created successfully.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error creating health risk: {ex.Message}");
+                }
+
+                return;
+            }
+
+            symptomResponse.EnsureSuccessStatusCode();
+            var symptoms = await symptomResponse.Content.ReadFromJsonAsync<List<SymptomDto>>();
+
+            var symptomGroups = SplitSymptomsIntoGroups(symptoms, 3);
+
+            foreach (var group in symptomGroups)
+            {
+                string query = string.Join("+", group.Select(s => s.SymptomDirectoryDto.SymptomName));
+
+                var response = await Http.GetAsync($"https://coolteammldiagnosis-production.up.railway.app/?query={query}");
+                response.EnsureSuccessStatusCode();
+                MlResultDto mlResult = await response.Content.ReadFromJsonAsync<MlResultDto>();
+
+                foreach (var diagnosis in mlResult.diagnosis)
+                {
+                    var reason = $"Your {string.Join(", ", mlResult.symptoms)} is the leading reason why you may get this.";
+                    HealthRiskDto healthRisk = new HealthRiskDto
+                        {
+                            HealthPlanID = id,
+                            Risk = diagnosis,
+                            Reason = reason
+                        };
+
+                    try
+                    {
+                        var createResponse = await Http.PostAsJsonAsync("https://localhost:7056/Create-HealthRisk", healthRisk);
+                        createResponse.EnsureSuccessStatusCode();
+                        Console.WriteLine("Health risk created successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error creating health risk: {ex.Message}");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing API response: {ex.Message}");
+        }
+    }
+
+    private List<List<SymptomDto>> SplitSymptomsIntoGroups(List<SymptomDto> symptoms, int numberOfGroups)
+    {
+        var groups = new List<List<SymptomDto>>();
+        int groupSize = (int)Math.Ceiling((double)symptoms.Count / numberOfGroups);
+
+        for (int i = 0; i < numberOfGroups; i++)
+        {
+            groups.Add(symptoms.Skip(i * groupSize).Take(groupSize).ToList());
+        }
+
+        return groups;
+    }
+
+}

@@ -1,0 +1,278 @@
+﻿@page "/vaccine-upload"
+@using HealthCareApp.Shared.Dto.BasicInformation
+@using HealthCareApp.Shared.Dto.Vaccine
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Vaccine Upload</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium"> 
+    <MudPaper class="pa-8" Style="width: 70%; height: 50%; margin: auto;">
+        <MudText class="justify-start items-center gap-6 flex">Vaccine Upload</MudText>
+        <MudDivider />
+        <MudStack Style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+            <MudFileUpload T="IReadOnlyList<IBrowserFile>"
+                            Accept=".csv, .xlsx"
+                            @ref="@_fileUpload"
+                            OnFilesChanged="OnInputFileChanged"
+                            AppendMultipleFiles
+                            Hidden="@false"
+                            InputClass="absolute mud-width-full mud-height-full overflow-hidden z-10"
+                            InputStyle="opacity:0"
+                            tabindex="-1"
+                            @ondrop="@ClearDragClass"
+                            @ondragenter="@SetDragClass"
+                            @ondragleave="@ClearDragClass"
+                            @ondragend="@ClearDragClass">
+                <ActivatorContent>
+                    <MudPaper Height="300px"
+                                Outlined="true"
+                                Class="@_dragClass">
+                        <MudItem>
+                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Title="Upload"/>
+                        </MudItem>
+                        <MudItem>
+                            <MudText Typo="Typo.h6">
+                                Drag and drop files here or click
+                            </MudText>
+                        </MudItem>
+                        @foreach (var file in _fileNames)
+                        {
+                            <MudChip T="string"
+                                        Color="Color.Inherit"
+                                        Text="@file"
+                                        tabindex="-1" />
+                        }
+                    </MudPaper>
+                </ActivatorContent>
+            </MudFileUpload>
+            <h1 class="justify-start items-center gap-6 flex">Formats accepted are .csv or .xlsx</h1>
+            <MudSelect T="int" Label="Vaccine Name" @bind-Value="vaccineId" Placeholder="Select a Vaccine" Variant="Variant.Text">
+                @foreach (var vaccine in vaccineDirectory)
+                {
+                    <MudSelectItem T="int" Value="vaccine.Id">@vaccine.VaccineName</MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker Label="Date Administered" @bind-Date="_date" ShowToolbar="false" />
+            <MudToolBar Gutters="@false"
+                        Class="relative d-flex justify-end gap-4">
+                <MudButton Color="Color.Primary"
+                            OnClick="@OpenFilePickerAsync"
+                            Variant="Variant.Filled">
+                    Open File Picker
+                </MudButton>
+                <MudButton Color="Color.Primary"
+                            Disabled="@(!_fileNames.Any())"
+                            OnClick="@Upload"
+                            Variant="Variant.Filled">
+                    Upload
+                </MudButton>
+                <MudButton Color="Color.Error"
+                            Disabled="@(!_fileNames.Any())"
+                            OnClick="@ClearAsync"
+                            Variant="Variant.Filled">
+                    Clear
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.Send" OnClick="Finish">
+                    Next
+                </MudButton>
+            </MudToolBar>
+        </MudStack>
+        <br />
+        <h3>Uploaded Files</h3>
+        <br />
+        @if (isLoading)
+        {
+            <p>Loading...</p>
+        }
+        else if (relations != null && relations.Any())
+        {
+            <ol class="uploaded-files-list">
+                @foreach (var relation in relations)
+                {
+                    <li>
+                        @Path.GetFileName(relation.FilePath)
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => DeleteVaccine(relation.Id)" />
+                    </li>
+                }
+            </ol>
+        }
+        else
+        {
+            <p>No vaccine files to display.</p>
+        }
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .uploaded-files-list {
+        list-style-type: disc;
+        margin: 0;
+        padding-left: 20px;
+        font-style: italic;
+    }
+
+        .uploaded-files-list li {
+            margin-bottom: 2px;
+        }
+</style>
+
+@code {
+    private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full";
+    private string _dragClass = DefaultDragClass;
+
+    private readonly List<IBrowserFile> _files = new();
+    private readonly List<string> _fileNames = new();
+    private MudFileUpload<IReadOnlyList<IBrowserFile>>? _fileUpload;
+
+    private List<VaccineDirectoryDto> vaccineDirectory = new List<VaccineDirectoryDto>();
+    private int vaccineId;
+    private DateTime? _date = DateTime.Now;
+
+    private List<VaccineRelationDto> relations = new List<VaccineRelationDto>();
+    private bool isLoading = true;
+
+    private async Task ClearAsync()
+    {
+        await (_fileUpload?.ClearAsync() ?? Task.CompletedTask);
+        _files.Clear();
+        _fileNames.Clear();
+        ClearDragClass();
+    }
+
+    private Task OpenFilePickerAsync()
+        => _fileUpload?.OpenFilePickerAsync() ?? Task.CompletedTask;
+
+    private void OnInputFileChanged(InputFileChangeEventArgs e)
+    {
+        ClearDragClass();
+        var files = e.GetMultipleFiles();
+        foreach (var file in files)
+        {
+            var fileExtension = System.IO.Path.GetExtension(file.Name).ToLower();
+            if (fileExtension != ".csv" && fileExtension != ".xlsx")
+            {
+                Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+                Snackbar.Add($"Error: Invalid file type uploaded ({fileExtension} not accepted)", Severity.Error);
+            }
+            else
+            {
+                _files.Add(file);
+                _fileNames.Add(file.Name);
+            }
+        }
+    }
+
+    private async Task Upload()
+    {
+        var content = new MultipartFormDataContent();
+
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot\\uploads");
+
+        if (!Directory.Exists(uploadsDir))
+        {
+            Directory.CreateDirectory(uploadsDir);
+        }
+
+        foreach (var file in _files)
+        {
+            var streamContent = new StreamContent(file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 10));
+            content.Add(streamContent, "file", file.Name);
+            var filePath = Path.Combine(uploadsDir, file.Name);
+            var vaccine = new VaccineRelationDto
+                {
+                    ApplicationUserId = "",
+                    VaccineDirectoryId = vaccineId,
+                    DateAdministered = _date,
+                    FilePath = filePath
+                };
+            var createResponse = await Http.PostAsJsonAsync("/Create-Vaccine", vaccine);
+        }
+
+        var uploadResponse = await Http.PostAsync("/upload-file", content);
+
+        if (uploadResponse.IsSuccessStatusCode)
+        {
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            Snackbar.Add("File successfully uploaded!", Severity.Success);
+            await LoadVaccine();
+        }
+        else if (uploadResponse.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            Snackbar.Add("A file with the same name already exists.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            Snackbar.Add($"Error: File failed to upload", Severity.Error);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            await LoadVaccine();
+        }
+        else
+        {
+            Snackbar.Add("User not authenticated.", Severity.Warning);
+        }
+        isLoading = false;
+        vaccineDirectory = await Http.GetFromJsonAsync<List<VaccineDirectoryDto>>("/Get-Directory");
+    }
+
+    private async Task LoadVaccine()
+    {
+        try
+        {
+            relations = await Http.GetFromJsonAsync<List<VaccineRelationDto>>("/Get-Vaccine");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteVaccine(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"Delete-Vaccine/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("File deleted successfully.", Severity.Success);
+                await LoadVaccine();
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete file.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Finish()
+    {
+        NavigationManager.NavigateTo("/medical-record");
+    }
+
+    private void SetDragClass()
+        => _dragClass = $"{DefaultDragClass} mud-border-primary";
+
+    private void ClearDragClass()
+        => _dragClass = DefaultDragClass;
+}
+

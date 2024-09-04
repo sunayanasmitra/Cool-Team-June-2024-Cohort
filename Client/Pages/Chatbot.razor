@@ -1,0 +1,74 @@
+﻿@page "/Chatbot"
+@using HealthCareApp.Shared.Dto.BasicInformation
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Chatbot</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+<MudChip T="string" Label="true" style="margin-bottom:20px;">Wellness.AI ChatBot™</MudChip>
+<MudPaper Class="w-50 p-5" Style="height: 60vh; overflow-y: scroll">
+        @foreach (var message in Messages)
+        {
+    <MudStack AlignItems="@GetAlignment(message.IsUser)">
+        <MudItem xs="6">
+                    <MudPaper Elevation="1" Style="width: 60vh; margin-bottom: 8px; padding: 10px;">
+                        @message.Text
+                    </MudPaper>
+                    <h4 style="font-size:0.9vw">@message.PostTime</h4>
+                </MudItem>
+            </MudStack>
+        }
+</MudPaper>
+<MudDivider />
+<MudTextField @bind-Value="UserInput" Label="Enter your query here" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+<MudButton OnClick="PostMessage" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Send" Color="Color.Primary">Post</MudButton>
+</MudContainer>
+
+@code {
+    private List<ChatMessage> Messages = new List<ChatMessage>();
+    private string UserInput { get; set; } = null!;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        string Greeting = "Hello! How may I assist you today?";
+        ChatMessage InitialMessage = new ChatMessage(Greeting, false);
+        Messages.Add(InitialMessage);
+    }
+
+    private MudBlazor.AlignItems GetAlignment(bool isUser)
+    {
+        MudBlazor.AlignItems allignment = isUser ? AlignItems.End : AlignItems.Start;
+        return allignment;
+    }
+
+
+    public async Task PostMessage()
+    {
+        ChatMessage UserMessage = new ChatMessage(UserInput, true);
+        Messages.Add(UserMessage);
+        var response = await Http.PostAsJsonAsync("/ChatBot/PostChatMessage", UserInput);
+        string responseOutput = await response.Content.ReadAsStringAsync();
+        ChatMessage ResponseMessage = new ChatMessage(responseOutput, false);
+        Messages.Add(ResponseMessage);
+        UserInput = string.Empty;
+    }
+
+    public class ChatMessage
+    {
+        public string Text { get; set; }
+        public DateTime PostTime { get; }
+        public bool IsUser { get; set; }
+
+        public ChatMessage(string text, bool isUser)
+        {
+            Text = text;
+            PostTime = DateTime.Now;
+            IsUser = isUser;
+        }
+
+    }
+}

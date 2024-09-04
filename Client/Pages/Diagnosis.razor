@@ -1,0 +1,144 @@
+﻿@page "/diagnosis"
+@using HealthCareApp.Shared.Dto.MedicalRecord
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Diagnosis</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudPaper Class="p-5 w-75">
+        <MudChip T="string" Label="true" style="margin-bottom:20px; margin-top:20px; font-weight:700;">Manage Diagnosis</MudChip>
+        <MudForm Spacing="2" @ref="@form">
+            <MudSelect Label="Diagnosis" @bind-Value="data.DiagnosisDirectoryId">
+                @foreach (var diagnosis in diagnosisDirectories)
+                {
+                    <MudSelectItem Value="diagnosis.Id">@diagnosis.DiagnosisName</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudDatePicker Label="Start Date" Editable="true" @bind-Date="_startDate" />
+            <MudDatePicker Label="End Date" Editable="true" @bind-Date="_endDate" />
+            <MudStack Row="true" Justify="Justify.Center" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="(() =>SubmitForm())">Submit</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.Send" OnClick="(() =>goNext())">Next</MudButton>
+            </MudStack>
+        </MudForm>
+
+        @if (diagnosis.Count == 0)
+        {
+            <p>No data to display here</p>
+        }
+        else
+        {
+            <MudSimpleTable Items="diagnosis" Hover="true">
+                <thead>
+                    <MudTh>Diagnosis Name</MudTh>
+                    <MudTh>Start Date</MudTh>
+                    <MudTh>End Date</MudTh>
+                    <MudTh>Actions</MudTh>
+                </thead>
+                <tbody>
+                    @foreach (var d in diagnosis)
+                    {
+                        <MudTr>
+                            <MudTd>@d.DiagnosisDirectoryDto.DiagnosisName</MudTd>
+                            <MudTd>@d.StartDate.ToShortDateString()</MudTd>
+                            <MudTd>@d.EndDate.ToShortDateString()</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="(() => DeleteDiagnosis(d.Id))" />
+                            </MudTd>
+                        </MudTr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+
+@code {
+
+    @inject ISnackbar Snackbar
+    @inject NavigationManager navigation
+
+    private DiagnosisDto data { get; set; } = new DiagnosisDto();
+    private List<DiagnosisDto> diagnosis { get; set; } = new List<DiagnosisDto>();
+    private List<DiagnosisDirectoryDto> diagnosisDirectories { get; set; } = new List<DiagnosisDirectoryDto>();
+    MudForm form { get; set; }
+
+    public DateTime? _startDate { get; set; } = DateTime.Now;
+    public DateTime? _endDate { get; set; } = DateTime.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllergies();
+        await LoadAllergyDirectory();
+    }
+
+    private async Task LoadAllergies()
+    {
+        diagnosis = await Http.GetFromJsonAsync<List<DiagnosisDto>>("Get-Diagnosis") ?? new List<DiagnosisDto>();
+    }
+
+    public async Task LoadAllergyDirectory()
+    {
+        diagnosisDirectories = await Http.GetFromJsonAsync<List<DiagnosisDirectoryDto>>("Get-DiagnosisDirectories") ?? new List<DiagnosisDirectoryDto>();
+    }
+
+    private async void SubmitForm()
+    {
+        if (_startDate == null || _endDate == null)
+        {
+            Snackbar.Add("Select all the options", Severity.Error);
+            return;
+        }
+
+        data.StartDate = (DateTime)_startDate!;
+        data.EndDate = (DateTime)_endDate!;
+        data.DiagnosisDirectoryDto.DiagnosisName = "";
+
+        HttpResponseMessage response;
+        if (data.Id == 0)
+        {
+            response = await Http.PostAsJsonAsync("/Create-Diagnosis", data);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Diagnosis added.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("No Diagnosis Selected.", Severity.Error);
+            }
+        }
+
+        // Refresh the list
+        await LoadAllergies();
+        // Reset the form
+        data = new DiagnosisDto();
+        // _startDate = null;
+        // _endDate = null;
+        form?.ResetAsync();
+
+        StateHasChanged();
+    }
+
+    public async void goNext()
+    {
+        navigation.NavigateTo("/medication");
+    }
+
+    private async Task DeleteDiagnosis(int id)
+    {
+        var deleteResponse = await Http.DeleteAsync($"/Delete-Diagnosis/{id}");
+        if (deleteResponse.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Diagnosis deleted.", Severity.Success);
+            await LoadAllergies(); // Refresh the list
+        }
+        else
+        {
+            Snackbar.Add("Failed to delete diagnosis.", Severity.Error);
+        }
+    }
+}
+

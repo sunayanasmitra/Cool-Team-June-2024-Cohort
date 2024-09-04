@@ -1,0 +1,41 @@
+﻿@page "/"
+
+<AuthorizeView Roles="Administrator">
+	<Authorized>
+	</Authorized>
+	<NotAuthorized>
+		<MudContainer>
+
+			<div style="margin-bottom:15vh;">
+				<div class="Conent flex-col justify-start items-start gap-6 inline-flex" style="position:relative; padding:0;">
+					<div class="TakeCareOfYouLeadAHealthyLife w-96 text-[#333333] text-5xl font-medium font-['Poppins'] leading-10 tracking-wide">Take Care of you.<br />Lead a Healthy Life.</div>
+					<MudContainer Style="width:90vw; flex-wrap:wrap; padding:0;" class="UnderstandWhatYourMedicalResultsMeanForYouLearnWhatYouCanDoToLeadAHealthyLifeAndFindAnswersToQuestionsYouMayHave w-96 text-[#252525] text-2xl font-normal font-['Poppins'] leading-loose flex-row d-flex flex-wrap">
+						<MudContainer MaxWidth="MaxWidth.ExtraSmall" Style="width:10000000px; margin-left:0; padding-left:0;">Understand what your medical results mean for you. Learn what you can do to lead a healthy life, and find answers to questions you may have.</MudContainer>
+						<MudContainer MaxWidth="MaxWidth.ExtraSmall" Style="width:10000000px;">
+							<MudImage ObjectFit="ObjectFit.Contain" Src="/Images/healthworkers.png" />
+						</MudContainer>
+					</MudContainer>
+					<div class="PrimaryButton px-10 py-6 bg-[#333333] rounded-3xl shadow justify-start items-start gap-2.5 inline-flex">
+						<MudText class="LearnMore text-white text-xl font-medium font-['Poppins'] leading-none">Learn More</MudText>
+					</div>
+				</div>
+			</div>
+
+			<div class="position-relative bg-white rounded-3xl border border-[#111111] justify-start items-start gap-20 inline-flex flex-wrap flex-row"
+				 Style="position:relative;">
+				<div class="Frame14507 justify-start items-center gap-6 flex">
+					<img class="Rectangle71 w-40 h-40 rounded-3xl" src="/Images/health_1.png" />
+					<MudText class="DecipherWhatYourTestResultsMeanGetAnyHealthRelatedQuestionsYouMayHaveAnsweredEGDiagnosisSymptomnsConcernsEtc w-96 text-[#252525] text-lg font-light font-['Poppins']">Decipher what your test results mean. Get any health related questions you may have answered e.g; diagnosis, symptomns, concerns, etc.</MudText>
+				</div>
+				<div class="Frame14507 justify-start items-center gap-6 flex">
+					<img class="Rectangle71 w-40 h-40 rounded-3xl" src="/Images/health_2.png" />
+					<MudText class="BuildAPlanThatWorksForYouToLeadAHealthierLife w-96 text-[#252525] text-lg font-light font-['Poppins']">Build a plan that works for you to lead a healthier life</MudText>
+				</div>
+			</div>
+		</MudContainer>
+	</NotAuthorized>
+</AuthorizeView>
+
+@code {
+	string url = "https://static.wixstatic.com/media/366f25_861eeda8dcd542c18679a17fb80c56d2~mv2.png/v1/fill/w_600,h_600,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/blob.png";
+	}

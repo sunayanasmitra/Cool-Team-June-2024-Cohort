@@ -1,0 +1,15 @@
+﻿@page "/account-manage"
+@using HealthCareApp.Shared.Dto.BasicInformation
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Basic Information</PageTitle>
+<MudPaper style="height:95vh;">
+	<iframe src="Identity/Account/Manage" class="h-100 w-100">
+	</iframe>
+</MudPaper>
+
+@code {
+
+}
